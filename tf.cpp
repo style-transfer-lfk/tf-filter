@@ -6,9 +6,6 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 static std::unique_ptr<tensorflow::Session> session;
-static const int TF_DISPLAY_WIDTH = 256;
-static const int TF_DISPLAY_HEIGHT = 256;
-static const int TF_PIXEL_SIZE = TF_DISPLAY_WIDTH * TF_DISPLAY_HEIGHT;
 static const int TF_CHANNEL_SIZE = 3;
 
 extern "C" void tf_init(const char *model)
@@ -41,11 +38,12 @@ extern "C" void tf_init(const char *model)
     graph_def.Clear();
 }
 
-extern "C" void tf_transfer(uint8_t *pixels)
+extern "C" void tf_transfer(uint8_t *pixels, int width, int height)
 {
-    tensorflow::Tensor input_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({ 1, TF_DISPLAY_HEIGHT, TF_DISPLAY_WIDTH, TF_CHANNEL_SIZE }));
+    tensorflow::Tensor input_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({ 1, height, width, TF_CHANNEL_SIZE }));
     auto input_tensor_mapped = input_tensor.flat<float>();
-    for (int i = 0; i < TF_PIXEL_SIZE; i++) {
+    int pixel_size = width * height;
+    for (int i = 0; i < pixel_size; i++) {
         input_tensor_mapped(i * 3 + 0) = pixels[i * 3 + 0];
         input_tensor_mapped(i * 3 + 1) = pixels[i * 3 + 1];
         input_tensor_mapped(i * 3 + 2) = pixels[i * 3 + 2];
@@ -62,7 +60,7 @@ extern "C" void tf_transfer(uint8_t *pixels)
 
     tensorflow::Tensor &output_tensor = output_tensors[0];
     tensorflow::TTypes<unsigned char>::Flat output_flat = output_tensor.flat<unsigned char>();
-    for (int i = 0; i < TF_PIXEL_SIZE; i++) {
+    for (int i = 0; i < pixel_size; i++) {
         pixels[i * 3 + 0] = output_flat(i * 3 + 0);
         pixels[i * 3 + 1] = output_flat(i * 3 + 1);
         pixels[i * 3 + 2] = output_flat(i * 3 + 2);
